@@ -13,7 +13,20 @@ On a 2 GB TCL Google TV this disabled 25 bloat apps and cut the home screen's me
 
 1. On the TV: Settings → System → About → press OK on **Build** 7 times → back → Developer options
    → turn on **USB debugging**. Keep the TV on, on the same Wi-Fi as your computer.
-2. Clone this repo, open Claude Code inside it, and paste the prompt from [PROMPT.md](PROMPT.md).
+2. Clone this repo, open Claude Code inside it (so it can reuse the launcher and scripts), and paste:
+
+   ```text
+   My Android TV is slow and full of ads. Find it on my Wi-Fi, connect over ADB, and debloat it:
+   disable the manufacturer's ads, telemetry and junk (reversibly, never uninstall), asking me first
+   about apps and features I might use. Then build and install a fast, minimal Apple TV-style home
+   screen with a dock of my favourite apps and rotating nature wallpapers. Back up before changing
+   anything, check every step with screenshots from the TV, and give me a restore script.
+
+   Heads-up from people who've done this: use the adb-shell Python package if macOS blocks adb; on
+   Google TV also disable com.google.android.tungsten.setupwraith or it hijacks the Home button; and
+   test the Home button from inside an app.
+   ```
+
 3. Accept "Allow USB debugging?" on the TV when asked, then answer a few questions: which apps you
    use, which go in the dock, whether you want wallpapers.
 
