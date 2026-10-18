@@ -17,7 +17,7 @@ On a 2 GB TCL Google TV this disabled 25 bloat apps and cut the home screen's me
 3. Accept "Allow USB debugging?" on the TV when asked, then answer a few questions: which apps you
    use, which go in the dock, whether you want wallpapers.
 
-The prompt includes every gotcha we hit (see below), so the agent shouldn't get stuck on them.
+The prompt is short on purpose; Claude works out the details. The gotchas below are there in case it gets stuck.
 
 ## Do it by hand (macOS)
 
