@@ -1,99 +1,46 @@
-# tv-home
+# TV-Debloat-designUNIQUE
 
-**Make a slow, ad-filled Android TV fast and clean again.** Debloat it over Wi-Fi and give it a
-tiny Apple TV-style home screen with rotating nature wallpapers. You can hand the whole thing to
-Claude Code with one prompt, or do it by hand with the scripts here.
+Ecrã inicial estilo Apple TV e limpeza ("debloat") para a TV **TCL Smart TV Pro (G08, Google TV, Android 12)**,
+feito a partir do [tv-home](https://github.com/mihirgupta0900/tv-home) de Mihir Gupta (MIT).
+Faz conjunto com o comando para o telemóvel **[TV-Remote-designUNIQUE](https://github.com/JoaoAntunesss/TV-Remote-designUNIQUE)**.
 
-![Before: Google TV home with a sponsored hero. After: clean dock over a Lake Louise wallpaper](before-after.png)
+## O que faz
+- **Debloat reversível:** desativa 20 apps de anúncios, telemetria e lixo da TCL e o ecrã Google TV com linhas patrocinadas
+  ([lista](examples/tcl-google-tv-g08/debloat.txt)). Nada é desinstalado.
+- **Ecrã inicial novo (em português):** relógio, data, dock com as apps principais
+  (AntunesPlayer, SmartTube, Spotify, HBO Max, SkyShowtime, Netflix) e botões **Aplicações** e **Definições**.
+  Fica como ecrã inicial por omissão e sobrevive a reiniciar.
+- **Fundo (painel → Fundo):**
+  - **Canal AntunesPlayer:** o último canal visto no AntunesPlayer a dar sem som atrás do menu.
+    Pára quando se abre uma app ou após 30 min sem tocar no comando.
+  - **Lareira (com som):** ao ligar a TV abre uma lareira em ecrã inteiro no SmartTube (YouTube sem anúncios).
+  - **Fotos da natureza** (12 fotos da Wikimedia Commons, ver [créditos](launcher/WALLPAPER-CREDITS.md)).
+- **Painel de controlo:** música a tocar, Wi‑Fi, saída de som (colunas da TV / Bluetooth), relógio em ecrã inteiro,
+  tema de fundo, lareira, pesquisa, acessibilidade, imagem, fontes, definições, RAM e espaço livre.
+- **Cartão "A tocar":** com a capa, ⏮ ⏯ ⏭ e "Ouvir", e o brilho na cor da capa.
+- **Ecrã dividido:** tecla Menu do comando (Fontes) → *Ecrã dividido · HDMI n*: HDMI à esquerda, canal à direita;
+  ◀ ▶ escolhem o som.
+- **Serviço para o comando do telemóvel** (rede local, porta 8765): `/apps` (apps com imagens), `/now` (o que está a dar),
+  `/inputs` (HDMI), `/do` (lareira, relógio, fontes, ecrã dividido), `/bg` (tema de fundo) e `/shot.jpg`
+  (imagem do ecrã; vídeo protegido aparece preto).
 
-On a 2 GB TCL Google TV this disabled 25 bloat apps and cut the home screen's memory use from
-192 MB to 83 MB. Everything is reversible: packages are disabled, never uninstalled.
-
-## Do it with Claude Code (easiest)
-
-1. On the TV: Settings → System → About → press OK on **Build** 7 times → back → Developer options
-   → turn on **USB debugging**. Keep the TV on, on the same Wi-Fi as your computer.
-2. Clone this repo, open Claude Code inside it (so it can reuse the launcher and scripts), and paste:
-
-   ```text
-   My Android TV is slow and full of ads. Find it on my Wi-Fi, connect over ADB, and debloat it:
-   disable the manufacturer's ads, telemetry and junk (reversibly, never uninstall), asking me first
-   about apps and features I might use. Then build and install a fast, minimal Apple TV-style home
-   screen with a dock of my favourite apps and rotating nature wallpapers. Back up before changing
-   anything, check every step with screenshots from the TV, and give me a restore script.
-
-   Heads-up from people who've done this: use the adb-shell Python package if macOS blocks adb; on
-   Google TV also disable com.google.android.tungsten.setupwraith or it hijacks the Home button; and
-   test the Home button from inside an app.
-   ```
-
-3. Accept "Allow USB debugging?" on the TV when asked, then answer a few questions: which apps you
-   use, which go in the dock, whether you want wallpapers.
-
-The prompt is short on purpose; Claude works out the details. The gotchas below are there in case it gets stuck.
-
-## Do it by hand (macOS)
-
-```bash
-./setup.sh                                                  # Python ADB client, JDK 17, Android SDK
-tools/find-tv.sh                                            # finds the TV, saves its IP
-tools/venv/bin/python -I tools/tv.py --probe                # model, Android version
-tools/disable.sh examples/tcl-google-tv-g07/debloat.txt     # or your own list, see examples/
-launcher/build-and-install.sh                               # build + install the launcher
+## Instalar (Windows)
+Requisitos: Android Studio (JDK + SDK build-tools 36 + platform 34) e, na TV, Opções de programador → depuração USB/rede.
 ```
+powershell -ExecutionPolicy Bypass -File windows\install.ps1 -Tv 192.168.1.128
+```
+Desfazer: `windows\restore.ps1`. Só compilar: `launcher\build-windows.ps1` (gera `launcher\build\tvhome.apk`).
 
-Undo everything with `tools/restore.sh <the same list>`.
+A primeira compilação cria `launcher/debug.keystore` (não está no repositório). Guarda-o: com outra chave a TV
+não deixa instalar por cima e é preciso desinstalar primeiro.
 
-## What's here
+## Notas desta TV
+- `adb install` falha com verificação do Play Protect; o script envia o APK e instala com `pm install`.
+- O APK tem de ter `targetSdk` ≥ 31, senão o Play Protect bloqueia ("App insegura").
+- Um ecrã inicial transparente por cima de outra app não é desenhado nesta TCL; por isso o canal de fundo é reproduzido
+  pelo próprio ecrã inicial.
+- `aapt2 -A` no Windows grava os assets com `\`; o script de compilação junta-os à mão com `/`.
+- A imagem do ecrã para o telemóvel é autorizada uma vez com `appops set com.mihir.tvhome PROJECT_MEDIA allow`
+  (o `install.ps1` já o faz), para a TV não perguntar.
 
-| Path | What it is |
-|---|---|
-| [PROMPT.md](PROMPT.md) | The prompt for Claude Code / any coding agent |
-| [launcher/](launcher/) | The home screen. 4.7 MB including the wallpapers; plain Android, no network, no background services |
-| [launcher/res/values/config.xml](launcher/res/values/config.xml) | Dock apps, hidden apps, Live TV app, grid columns |
-| [tools/tv.py](tools/tv.py) | Pure-Python ADB client: shell, batch, screenshots, chunked APK push |
-| [tools/find-tv.sh](tools/find-tv.sh) | Finds Android TVs on your Wi-Fi |
-| [tools/type.sh](tools/type.sh) | Type into the TV's on-screen keyboard from your laptop (`tools/type.sh` alone prompts hidden, for passwords) |
-| [tools/disable.sh](tools/disable.sh), [tools/restore.sh](tools/restore.sh) | Apply / undo a debloat list |
-| [examples/](examples/) | Debloat lists per TV model |
-
-## The launcher
-
-- Clock, greeting and date top-left. Frosted pills top-right for **Inputs** (HDMI/AV/Live TV
-  dropdown; the remote's Menu key opens it too), **Wi-Fi** (shows the network name) and **Settings**.
-- A dock of your favourite apps. The focused app's name appears above it over a glow coloured from
-  its banner. Press Down for every other app in a grid.
-- 12 nature photos crossfade every 10 minutes, with a scrim so text stays readable. Swap them in
-  `launcher/assets/wallpapers/` (1920×1080 JPEGs, credits in `launcher/WALLPAPER-CREDITS.md`).
-- Deterministic D-pad focus, remembers the last tile, picks up newly installed apps on return.
-
-Change the dock: edit `config.xml`, then run `launcher/build-and-install.sh`.
-
-## Gotchas we hit
-
-- **macOS blocks the `adb` binary** on the local network ("No route to host"). `tools/tv.py` uses
-  the `adb-shell` Python package instead.
-- **Google TV hijacks the Home button.** With the stock launcher disabled, the setup app
-  (`com.google.android.tungsten.setupwraith`) has a higher HOME priority than any third-party
-  launcher. The install script disables it; `restore.sh` re-enables it.
-- **Home opened the launcher behind the current app**, because of a stale home task from switching
-  launchers. Force-stopping the launcher and `com.android.tv.settings` and pressing Home fixes it.
-  The install script does this.
-- **Chained `pm` commands** (`pm disable a; pm disable b`) can silently stop after the first. The
-  scripts run one per shell call.
-- **Apps installed from the Play Store didn't appear**, because the package broadcast was missed
-  while another app was in front. The launcher re-checks with `getChangedPackages` on every return.
-- **Unsplash blocks scripted downloads** with a bot check. The wallpapers come from Wikimedia
-  Commons Featured Pictures instead.
-
-## Supported TVs
-
-Android TV and Google TV: TCL, Xiaomi/Redmi, Hisense, Sony, OnePlus, Realme, Nvidia Shield,
-Chromecast with Google TV and most others. Not Samsung (Tizen), LG (webOS) or Fire TV.
-Tested on: TCL Google TV (Android 11). Add yours to `examples/`.
-
-## Credits
-
-Inspired by [Gathin23/tv-vibehack](https://github.com/Gathin23/tv-vibehack). Wallpaper photos are
-from Wikimedia Commons under their own licences, see
-[launcher/WALLPAPER-CREDITS.md](launcher/WALLPAPER-CREDITS.md). Code is MIT, see [LICENSE](LICENSE).
+Código: MIT (ver [LICENSE](LICENSE)). README original: [docs/README-upstream.md](docs/README-upstream.md).
