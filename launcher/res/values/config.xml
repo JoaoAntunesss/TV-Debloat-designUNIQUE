@@ -6,11 +6,12 @@
 <resources>
     <!-- Dock apps, left to right. Apps that aren't installed are skipped. -->
     <string-array name="dock_apps">
-        <item>com.apple.atve.androidtv.appletv</item>
-        <item>com.google.android.youtube.tv</item>
-        <item>in.startv.hotstar</item>
+        <item>com.antunes.player</item>
+        <item>org.smarttube.stable</item>
+        <item>com.spotify.tv.android</item>
+        <item>com.wbd.stream</item>
+        <item>com.skyshowtime.skyshowtime.google</item>
         <item>com.netflix.ninja</item>
-        <item>com.amazon.amazonvideo.livingroom</item>
     </string-array>
 
     <!-- Never shown as tiles: system helpers, and the Live TV app (it's in the Inputs menu). -->
@@ -19,6 +20,7 @@
         <item>com.tcl.suspension</item>
         <item>com.tcl.t_solo</item>
         <item>com.tcl.dashboard</item>
+        <item>me.efesser.flauncher</item>
     </string-array>
 
     <!-- The TV's Live TV / tuner app, listed last in the Inputs menu. Empty to leave it out.
@@ -29,6 +31,10 @@
     <!-- The manufacturer's own source picker, used if switching to an input directly fails. -->
     <string name="input_picker_package" translatable="false">com.tcl.suspension</string>
 
+    <!-- Opened in ambient mode (last channel, no sound) when the TV is switched on. Empty to turn off. -->
+    <string name="ambient_package" translatable="false">com.antunes.player</string>
+
     <!-- Tiles per row in the grid. -->
     <integer name="columns">5</integer>
 </resources>
+

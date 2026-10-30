@@ -1,0 +1,33 @@
+# TCL Smart TV Pro (device G08), Google TV, Android 12
+# Everything is DISABLED for user 0, never uninstalled. Undo: C:\Users\joao\tv-debloat\restore.ps1
+# Kept on purpose: Chromecast (mediashell), screen mirroring, AirPlay, USB media, Play Store, YouTube (needed for casting).
+
+# TCL telemetry, accounts and ads
+com.tcl.ttvs                       # TCL core service: analytics, Alexa bridge, account sync
+com.tcl.usercenter                 # TCL account / phone binding
+com.tcl.messagebox                 # TCL promo message popups
+com.tcl.esticker                   # on-screen promo stickers
+com.tcl.partnercustomizer          # partner app rows / promos for the stock launcher
+com.tcl.logkit                     # log collection
+com.tcl.exhibit                    # shop demo mode
+
+# TCL content tabs and channels
+com.tcl.channelplus                # "TCL Channel" app
+com.tcl.waterfall.overseas         # the "TCL" content tab
+com.tcl.tv.tclhome_passive
+
+# TCL background clutter
+com.tcl.guard                      # cleaner / "TV guard"
+com.tcl.smartalexa                 # Alexa
+com.tcl.gallery                    # USB photo gallery (already off)
+
+# Google extras and ads
+com.google.android.apps.tv.dreamx  # ambient screensaver with recommendations/ads (falls back to basic)
+com.google.android.videos          # Google TV / Play Movies
+com.google.android.play.games
+com.google.android.feedback        # (already off)
+
+# Old home screens (the new one replaces them)
+com.google.android.apps.tv.launcherx    # Google TV home with sponsored rows
+com.google.android.tungsten.setupwraith # hijacks the Home button if left on
+me.efesser.flauncher                    # FLauncher, tried before

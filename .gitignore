@@ -10,3 +10,9 @@ shots/
 launcher/build/
 .DS_Store
 __pycache__/
+
+# Local only
+windows/backup-*/
+fire/
+*.apk
+launcher/patch*.ps1

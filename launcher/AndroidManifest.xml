@@ -4,10 +4,15 @@
     android:versionCode="1"
     android:versionName="1.0">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Android 11 only reveals the Wi-Fi name to apps holding location; granted over ADB at install. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
@@ -26,6 +31,7 @@
         android:icon="@drawable/ic_home"
         android:banner="@drawable/ic_home"
         android:allowBackup="false"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Home">
 
         <activity
@@ -44,5 +50,19 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <!-- Only so the home screen can show what is playing (Spotify etc.). -->
+        <service android:name=".MediaListener" android:exported="true" android:label="Home"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter><action android:name="android.service.notification.NotificationListenerService" /></intent-filter>
+        </service>
+        <!-- AntunesPlayer says which live channel is playing; shown muted behind the home screen. -->
+        <receiver android:name=".NowReceiver" android:exported="true">
+            <intent-filter><action android:name="com.antunes.player.NOW_PLAYING" /></intent-filter>
+        </receiver>
+        <activity android:name=".SplitActivity" android:exported="false" android:excludeFromRecents="true"
+            android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@style/Home"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|density" />
+        <!-- Pictures of the screen for the phone remote. -->
+        <service android:name=".ShotService" android:exported="false" android:foregroundServiceType="mediaProjection" />
     </application>
 </manifest>
