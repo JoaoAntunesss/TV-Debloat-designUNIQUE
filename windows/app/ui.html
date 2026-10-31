@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TV Debloat</title>
+<link rel="icon" href="/icon.png">
+<style>
+:root {
+  --ink: #f5f5f7;
+  --soft: rgba(245, 245, 247, .64);
+  --faint: rgba(245, 245, 247, .38);
+  --glass: rgba(28, 28, 34, .58);
+  --glass-hi: rgba(255, 255, 255, .12);
+  --line: rgba(255, 255, 255, .12);
+  --good: #6fdc8c;
+  --bad: #ff7a6b;
+  --warm: #ffb547;
+  --font: "Segoe UI Variable Display", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { font: 15px/1.45 var(--font); color: var(--ink); background: #0b0b0f; overflow: hidden; user-select: none; -webkit-font-smoothing: antialiased; }
+.bg { position: fixed; inset: -40px; background: url(/wall.jpg) center/cover; filter: blur(28px) saturate(1.3) brightness(.55); transform: scale(1.05); }
+.bg::after { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 20%, rgba(0,0,0,0) 0%, rgba(0,0,0,.45) 75%); }
+.app { position: relative; height: 100%; display: grid; grid-template-rows: auto 1fr auto; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 22px 34px 0; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 17px; letter-spacing: -.01em; }
+.brand img { width: 30px; height: 30px; border-radius: 8px; }
+.dots { display: flex; gap: 8px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); transition: all .3s; }
+.dots i.on { width: 26px; border-radius: 4px; background: var(--ink); }
+.clock { font-variant-numeric: tabular-nums; color: var(--soft); font-size: 15px; min-width: 60px; text-align: right; }
+main { position: relative; overflow: hidden; }
+.page { position: absolute; inset: 0; padding: 26px 34px 10px; overflow-y: auto; opacity: 0; transform: translateX(40px); transition: opacity .35s ease, transform .45s cubic-bezier(.2,.8,.2,1); pointer-events: none; }
+.page.on { opacity: 1; transform: none; pointer-events: auto; }
+.page.left { transform: translateX(-40px); }
+footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 34px 26px; }
+h1 { font-size: 46px; line-height: 1.04; letter-spacing: -.03em; margin: 0 0 12px; font-weight: 700; text-wrap: balance; }
+h2 { font-size: 32px; line-height: 1.1; letter-spacing: -.02em; margin: 0 0 8px; font-weight: 700; }
+.lead { color: var(--soft); font-size: 17px; max-width: 60ch; margin: 0 0 24px; }
+.glass { background: var(--glass); border: 1px solid var(--line); border-radius: 22px; backdrop-filter: blur(30px) saturate(1.4); }
+button { font: inherit; color: inherit; cursor: pointer; border: 0; background: none; }
+.btn { height: 46px; padding: 0 26px; border-radius: 23px; font-weight: 600; font-size: 15px; transition: transform .15s, background .2s, opacity .2s; }
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--ink); color: #111; }
+.btn.primary:hover { background: #fff; }
+.btn.ghost { background: var(--glass-hi); color: var(--ink); }
+.btn.ghost:hover { background: rgba(255,255,255,.2); }
+.btn:disabled { opacity: .35; cursor: default; }
+.link { color: var(--soft); text-decoration: underline; text-underline-offset: 3px; font-size: 14px; }
+.link:hover { color: var(--ink); }
+:focus-visible { outline: 3px solid rgba(255,255,255,.85); outline-offset: 3px; }
+
+/* welcome */
+.hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 36px; align-items: center; height: 100%; }
+.tvmock { position: relative; aspect-ratio: 16/9; border-radius: 16px; overflow: hidden; border: 6px solid #1b1b1f; box-shadow: 0 30px 80px rgba(0,0,0,.6); background: url(/wall.jpg) center/cover; }
+.tvmock::after { content: ""; position: absolute; left: 50%; bottom: -22px; width: 30%; height: 10px; transform: translateX(-50%); }
+.tvm-clock { position: absolute; left: 6%; top: 8%; font-size: clamp(22px, 3.2vw, 40px); font-weight: 300; letter-spacing: -.02em; text-shadow: 0 2px 12px rgba(0,0,0,.4); }
+.tvm-date { position: absolute; left: 6.4%; top: 22%; font-size: 12px; color: rgba(255,255,255,.8); }
+.tvm-dock { position: absolute; left: 5%; right: 5%; bottom: 8%; display: flex; gap: 2.4%; padding: 2.4%; border-radius: 14px; background: rgba(30,30,36,.45); backdrop-filter: blur(16px); }
+.tvm-dock span { flex: 1; aspect-ratio: 16/10; border-radius: 8px; display: grid; place-items: center; font-size: 10px; font-weight: 700; color: #fff; }
+.tvm-dock span:first-child { outline: 2px solid #fff; transform: scale(1.08); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 28px; }
+.chip { padding: 7px 13px; border-radius: 99px; background: var(--glass-hi); color: var(--ink); font-size: 13px; }
+
+/* prepare */
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.step { padding: 20px; display: grid; gap: 12px; align-content: start; min-height: 230px; }
+.step b { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--ink); color: #111; font-size: 15px; }
+.step h3 { margin: 0; font-size: 17px; }
+.step p { margin: 0; color: var(--soft); font-size: 14px; }
+.menu { margin-top: 4px; border-radius: 12px; background: rgba(0,0,0,.35); padding: 8px; font-size: 12px; display: grid; gap: 4px; }
+.menu div { padding: 6px 9px; border-radius: 7px; color: var(--soft); }
+.menu div.hi { background: rgba(255,255,255,.92); color: #111; font-weight: 600; }
+.tip { margin-top: 18px; color: var(--faint); font-size: 13px; }
+
+/* find */
+.find { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
+.radar { position: relative; height: 230px; display: grid; place-items: center; }
+.radar i { position: absolute; width: 90px; height: 90px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.5); opacity: 0; }
+.radar.go i { animation: ping 2.4s cubic-bezier(.2,.6,.3,1) infinite; }
+.radar.go i:nth-child(2) { animation-delay: .8s; } .radar.go i:nth-child(3) { animation-delay: 1.6s; }
+@keyframes ping { from { transform: scale(.6); opacity: .9; } to { transform: scale(2.5); opacity: 0; } }
+.radar svg { width: 64px; height: 64px; }
+.tvs { display: grid; gap: 10px; }
+.tv { display: grid; grid-template-columns: 44px 1fr auto; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 16px; background: var(--glass); border: 1px solid var(--line); text-align: left; transition: background .2s, transform .15s; }
+.tv:hover { background: rgba(60,60,70,.6); }
+.tv.sel { background: rgba(255,255,255,.92); color: #111; }
+.tv.sel small { color: #444; }
+.tv svg { width: 34px; height: 34px; }
+.tv small { display: block; color: var(--soft); font-size: 13px; }
+.pill { font-size: 12px; padding: 4px 10px; border-radius: 99px; background: rgba(111,220,140,.18); color: var(--good); font-weight: 600; }
+.pill.warn { background: rgba(255,181,71,.18); color: var(--warm); }
+.tv.sel .pill { background: #111; color: #fff; }
+.manual { display: flex; gap: 10px; margin-top: 14px; align-items: center; }
+.manual input { flex: 1; height: 46px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: var(--ink); padding: 0 16px; font: 16px var(--font); font-variant-numeric: tabular-nums; }
+.msg { min-height: 22px; margin-top: 14px; color: var(--soft); }
+.msg.bad { color: var(--bad); } .msg.good { color: var(--good); }
+.overlay { position: fixed; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 10; }
+.overlay.on { opacity: 1; pointer-events: auto; }
+.dialog { width: min(560px, 90vw); padding: 30px; text-align: center; display: grid; gap: 14px; justify-items: center; }
+.allow { width: 100%; border-radius: 14px; background: #202024; border: 1px solid var(--line); padding: 18px; text-align: left; font-size: 13px; color: var(--soft); }
+.allow strong { color: var(--ink); font-size: 15px; display: block; margin-bottom: 8px; }
+.allow .ck { display: flex; gap: 8px; align-items: center; margin: 10px 0; color: var(--ink); }
+.allow .ck i { width: 16px; height: 16px; border-radius: 4px; background: #fff; display: grid; place-items: center; color: #111; font-style: normal; font-size: 12px; font-weight: 800; }
+.allow .ok { display: inline-block; padding: 6px 18px; border-radius: 8px; background: #fff; color: #111; font-weight: 700; margin-top: 4px; }
+.spinner { width: 42px; height: 42px; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #fff; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* choose */
+.cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.card { position: relative; padding: 18px 18px 16px; border-radius: 20px; background: var(--glass); border: 1px solid var(--line); display: grid; gap: 10px; align-content: start; text-align: left; transition: background .2s, border-color .2s, opacity .2s; }
+.card.big { grid-column: span 2; }
+.card.off { opacity: .55; }
+.card.locked { opacity: .35; pointer-events: none; }
+.card .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.card .ic { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; }
+.card .ic svg { width: 22px; height: 22px; }
+.card h3 { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+.card p { margin: 0; color: var(--soft); font-size: 13.5px; }
+.sw { width: 50px; height: 30px; border-radius: 15px; background: rgba(255,255,255,.2); position: relative; transition: background .25s; flex: none; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; transition: transform .25s cubic-bezier(.3,.7,.3,1.2); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.sw.on { background: var(--good); }
+.sw.on::after { transform: translateX(20px); }
+.mini { display: flex; flex-wrap: wrap; gap: 6px; }
+.mini span { font-size: 12px; padding: 4px 9px; border-radius: 99px; background: rgba(255,255,255,.1); color: var(--soft); }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.seg button { padding: 10px 8px; border-radius: 12px; background: rgba(255,255,255,.08); border: 1px solid transparent; font-size: 13px; display: grid; gap: 6px; justify-items: center; color: var(--soft); }
+.seg button .sw-img { width: 100%; aspect-ratio: 16/9; border-radius: 8px; background-size: cover; background-position: center; }
+.seg button.on { border-color: #fff; color: var(--ink); background: rgba(255,255,255,.16); }
+.seg button:disabled { opacity: .35; cursor: default; }
+.list { display: none; margin-top: 4px; max-height: 190px; overflow-y: auto; border-radius: 12px; background: rgba(0,0,0,.25); padding: 6px; }
+.list.on { display: block; }
+.list label { display: flex; gap: 10px; align-items: center; padding: 7px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+.list label:hover { background: rgba(255,255,255,.06); }
+.list input { width: 16px; height: 16px; accent-color: #fff; }
+.list code { color: var(--faint); font-size: 11px; margin-left: auto; }
+
+/* apply / done */
+.work { display: grid; grid-template-columns: 300px 1fr; gap: 34px; align-items: center; height: 100%; }
+.ring { position: relative; width: 260px; height: 260px; }
+.ring svg { transform: rotate(-90deg); }
+.ring .pct { position: absolute; inset: 0; display: grid; place-items: center; font-size: 54px; font-weight: 300; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.ring .pct small { font-size: 22px; }
+.log { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 7px; max-height: 330px; overflow-y: auto; }
+.log li { padding: 10px 14px; border-radius: 12px; background: var(--glass); border: 1px solid var(--line); font-size: 14px; animation: in .35s ease; }
+.log li.bad { color: var(--bad); }
+@keyframes in { from { opacity: 0; transform: translateY(6px); } }
+.done { display: grid; grid-template-columns: 1fr auto; gap: 40px; align-items: center; height: 100%; }
+.check { width: 84px; height: 84px; border-radius: 50%; background: var(--good); display: grid; place-items: center; margin-bottom: 20px; animation: pop .5s cubic-bezier(.3,1.6,.5,1); }
+.check svg { width: 44px; height: 44px; }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } }
+.qr { padding: 22px; text-align: center; width: 290px; display: grid; gap: 12px; justify-items: center; }
+.qr #qrbox { background: #fff; padding: 12px; border-radius: 14px; width: 204px; height: 204px; }
+.qr p { margin: 0; color: var(--soft); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="app">
+  <header>
+    <div class="brand"><img src="/icon.png" alt="">TV Debloat</div>
+    <div class="dots" id="dots"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="clock" id="clock"></div>
+  </header>
+
+  <main>
+    <!-- 0 welcome -->
+    <section class="page" id="p0">
+      <div class="hero">
+        <div>
+          <h1>A tua TV, sem anúncios e com um ecrã novo.</h1>
+          <p class="lead">Em poucos minutos a TV fica com um ecrã inicial limpo e em português, só com as tuas apps, e sem a publicidade do fabricante. Escolhes o que queres e podes desfazer tudo quando quiseres.</p>
+          <div class="chips"><span class="chip">Sem anúncios</span><span class="chip">Ecrã inicial novo</span><span class="chip">YouTube sem anúncios</span><span class="chip">Lareira com som</span><span class="chip">Ecrã dividido HDMI</span><span class="chip">Comando no telemóvel</span></div>
+          <button class="btn primary" onclick="go(1)">Começar</button>
+        </div>
+        <div class="tvmock" aria-hidden="true">
+          <div class="tvm-clock" id="mockclock">20:30</div>
+          <div class="tvm-date" id="mockdate"></div>
+          <div class="tvm-dock"><span style="background:#1f6feb">TV</span><span style="background:#e02424">▶</span><span style="background:#1db954">♪</span><span style="background:#3a2fd8">max</span><span style="background:#0a1a5c">sky</span><span style="background:#b20710">N</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 1 prepare -->
+    <section class="page" id="p1">
+      <h2>Prepara a TV</h2>
+      <p class="lead">Só é preciso uma vez. A TV tem de deixar o computador ligar-se a ela pela rede Wi‑Fi de casa. Pega no comando e segue estes passos.</p>
+      <div class="steps">
+        <div class="step glass"><b>1</b><h3>Mesma rede</h3><p>Liga a TV e este computador à mesma rede Wi‑Fi de casa (ou por cabo).</p>
+          <div class="menu"><div class="hi">Wi‑Fi de casa ✓</div><div>Computador ✓</div></div></div>
+        <div class="step glass"><b>2</b><h3>Acerca de</h3><p>Na TV, abre <strong>Definições → Sistema → Acerca de</strong>.</p>
+          <div class="menu"><div>Rede e Internet</div><div class="hi">Sistema</div><div>Acerca de</div></div></div>
+        <div class="step glass"><b>3</b><h3>Carrega 7 vezes</h3><p>Desce até <strong>Compilação do SO Android TV</strong> e carrega 7 vezes seguidas, até aparecer «Agora é programador».</p>
+          <div class="menu"><div>Versão</div><div class="hi">Compilação do SO ×7</div></div></div>
+        <div class="step glass"><b>4</b><h3>Ativa a depuração</h3><p>Volta a <strong>Sistema → Opções de programador</strong> e liga <strong>Depuração USB</strong>.</p>
+          <div class="menu"><div>Opções de programador</div><div class="hi">Depuração USB ●</div></div></div>
+      </div>
+      <p class="tip">Os nomes mudam um pouco entre marcas. Se vires «Depuração sem fios» ou «Depuração de rede», liga também.</p>
+    </section>
+
+    <!-- 2 find -->
+    <section class="page" id="p2">
+      <h2>Encontrar a TV</h2>
+      <p class="lead">Deixa a TV ligada. Procuro-a na tua rede automaticamente.</p>
+      <div class="find">
+        <div>
+          <div class="radar" id="radar"><i></i><i></i><i></i>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 20h8"/></svg>
+          </div>
+          <div style="text-align:center"><button class="btn ghost" id="rescan" onclick="scan()">Procurar outra vez</button></div>
+        </div>
+        <div>
+          <div class="tvs" id="tvs"></div>
+          <div class="manual"><input id="ip" placeholder="Ou escreve o IP da TV, por exemplo 192.168.1.50" inputmode="decimal" aria-label="Endereço IP da TV"></div>
+          <div class="msg" id="findmsg"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3 choose -->
+    <section class="page" id="p3">
+      <h2 id="tvname">Escolhe o que queres</h2>
+      <p class="lead" style="margin-bottom:18px">Liga ou desliga cada parte. Está tudo ligado como na TV original deste projeto.</p>
+      <div class="cards">
+        <div class="card big" data-k="home">
+          <div class="top"><div class="ic" style="background:#2c6bed"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7"/><path d="M6 9.5V20h12V9.5"/></svg></div><div class="sw on"></div></div>
+          <h3>Ecrã inicial novo</h3>
+          <p>Estilo Apple TV, em português, com relógio, papéis de parede e só as tuas apps. Substitui o ecrã do Google TV com anúncios.</p>
+          <div class="mini"><span>Painel de controlo</span><span>«A tocar agora»</span><span>Ecrã dividido com HDMI</span><span>Fontes e HDMI</span><span>Protetor de ecrã com relógio</span><span>Comando no telemóvel</span></div>
+        </div>
+        <div class="card" data-k="ads">
+          <div class="top"><div class="ic" style="background:#e5484d"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></svg></div><div class="sw on"></div></div>
+          <h3>Sem anúncios</h3>
+          <p id="adsdesc">Desliga as apps de fábrica que mostram publicidade ou recolhem dados.</p>
+          <button class="link" style="justify-self:start" onclick="event.stopPropagation(); $('#list').classList.toggle('on')">Ver a lista</button>
+          <div class="list" id="list" onclick="event.stopPropagation()"></div>
+        </div>
+        <div class="card" data-k="tube">
+          <div class="top"><div class="ic" style="background:#ff2d2d"><svg viewBox="0 0 24 24" fill="#fff"><path d="M9 7.5v9l7.5-4.5z"/></svg></div><div class="sw on"></div></div>
+          <h3>YouTube sem anúncios</h3>
+          <p>Instala o SmartTube, gratuito e de código aberto. É também a app da lareira.</p>
+        </div>
+        <div class="card" data-k="player">
+          <div class="top"><div class="ic" style="background:#1f6feb"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8M12 17v3"/></svg></div><div class="sw on"></div></div>
+          <h3>AntunesPlayer</h3>
+          <p>Canais de TV ao vivo. O último canal fica a dar sem som no fundo do ecrã inicial.</p>
+        </div>
+        <div class="card" data-k="bgcard" style="cursor:default">
+          <div class="top"><div class="ic" style="background:#ff8a00"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M12 3c2 4 6 6 6 11a6 6 0 0 1-12 0c0-3 2-4.5 3-6.5.5 2 1.5 3 2.5 3.5C11 8 11 5.5 12 3z"/></svg></div></div>
+          <h3>Fundo do ecrã inicial</h3>
+          <div class="seg" id="seg">
+            <button data-bg="canal"><span class="sw-img" style="background:linear-gradient(135deg,#1f6feb,#0a1a5c)"></span>Canal ao vivo</button>
+            <button data-bg="lareira"><span class="sw-img" style="background:radial-gradient(circle at 50% 80%,#ffd27a,#ff6a00 35%,#5a1600 70%,#140600)"></span>Lareira com som</button>
+            <button data-bg="fotos"><span class="sw-img" style="background:url(/wall.jpg) center/cover"></span>Fotos</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 working -->
+    <section class="page" id="p4">
+      <div class="work">
+        <div class="ring">
+          <svg width="260" height="260" viewBox="0 0 260 260"><circle cx="130" cy="130" r="116" stroke="rgba(255,255,255,.14)" stroke-width="14" fill="none"/><circle id="arc" cx="130" cy="130" r="116" stroke="#fff" stroke-width="14" fill="none" stroke-linecap="round" stroke-dasharray="729" stroke-dashoffset="729" style="transition:stroke-dashoffset .6s ease"/></svg>
+          <div class="pct"><span><span id="pct">0</span><small>%</small></span></div>
+        </div>
+        <div>
+          <h2 id="worktitle">A preparar a tua TV</h2>
+          <p class="lead" id="workmsg" style="margin:0">Não desligues a TV nem o computador.</p>
+          <ul class="log" id="log"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5 done -->
+    <section class="page" id="p5">
+      <div class="done">
+        <div>
+          <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="#0b2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="#06361a"/></svg></div>
+          <h1 id="donetitle">Está pronto.</h1>
+          <p class="lead" id="donemsg">Carrega no botão Home do comando para ver o novo ecrã. Para desfazer, abre esta app outra vez e escolhe «Repor a TV como estava».</p>
+        </div>
+        <div class="qr glass" id="qrcard">
+          <strong>Comando no telemóvel</strong>
+          <div id="qrbox"></div>
+          <p>Aponta a câmara do telemóvel Android para instalar o Comando TV: teclas, apps, ecrã da TV no telemóvel e fundo.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div><button class="link" id="restore" onclick="restore()" hidden>Repor a TV como estava</button></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn ghost" id="back" onclick="go(page-1)" hidden>Voltar</button>
+      <button class="btn primary" id="next" onclick="next()" hidden>Continuar</button>
+    </div>
+  </footer>
+</div>
+
+<div class="overlay" id="ov">
+  <div class="dialog glass">
+    <div class="spinner" id="ovspin"></div>
+    <h2 id="ovtitle" style="margin:0">A ligar…</h2>
+    <p class="lead" id="ovmsg" style="margin:0"></p>
+    <div class="allow" id="allow" hidden>
+      <strong>Permitir depuração USB?</strong>
+      A impressão digital da chave RSA do computador é…
+      <div class="ck"><i>✓</i>Permitir sempre a partir deste computador</div>
+      <span class="ok">OK</span>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const REMOTE_APK = "https://github.com/JoaoAntunesss/TV-Remote-designUNIQUE/releases/download/latest/ComandoTV.apk";
+let page = -1, chosenIp = "", status = {}, bg = "lareira", restoring = false;
+const opts = { home: true, ads: true, tube: true, player: true };
+
+const api = (p, body) => fetch(p, body ? { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(body) } : {}).then(r => r.json());
+setInterval(() => api("/api/ping").catch(() => {}), 4000);
+window.addEventListener("beforeunload", () => navigator.sendBeacon && navigator.sendBeacon("/api/quit"));
+
+function tick() {
+  const d = new Date();
+  const t = d.toLocaleTimeString("pt-PT", { hour: "2-digit", minute: "2-digit" });
+  $("#clock").textContent = t; $("#mockclock").textContent = t;
+  $("#mockdate").textContent = d.toLocaleDateString("pt-PT", { weekday: "long", day: "numeric", month: "long" });
+}
+tick(); setInterval(tick, 10000);
+
+function go(n) {
+  if (n < 0) return;
+  document.querySelectorAll(".page").forEach((p, i) => { p.classList.toggle("on", i === n); p.classList.toggle("left", i < n); });
+  document.querySelectorAll("#dots i").forEach((d, i) => d.classList.toggle("on", i === Math.min(n, 4)));
+  page = n;
+  $("#back").hidden = !(n === 1 || n === 2 || n === 3);
+  $("#next").hidden = n === 0 || n === 4;
+  $("#next").disabled = false;
+  $("#restore").hidden = n !== 3;
+  $("#next").textContent = { 1: "Já fiz isto", 2: "Ligar à TV", 3: "Aplicar", 5: "Fechar" }[n] || "Continuar";
+  if (n === 2) { scan(); api("/api/last").then(r => { if (r.ip && !$("#ip").value) $("#ip").value = r.ip; }); }
+}
+
+function next() {
+  if (page === 1) go(2);
+  else if (page === 2) connect();
+  else if (page === 3) apply();
+  else if (page === 5) { api("/api/quit").finally(() => window.close()); }
+}
+
+/* ---------- find ---------- */
+const tvIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="2.5" y="4" width="19" height="13" rx="2"/><path d="M8 20h8"/></svg>';
+function scan() {
+  $("#radar").classList.add("go"); $("#rescan").disabled = true;
+  $("#tvs").innerHTML = ""; msg("findmsg", "A procurar na rede… demora uns segundos.");
+  api("/api/scan").then(list => {
+    $("#radar").classList.remove("go"); $("#rescan").disabled = false;
+    if (!list.length) { msg("findmsg", "Não encontrei nenhuma TV. Confirma que está ligada, na mesma rede, e que ativaste a Depuração USB. Também podes escrever o IP.", "bad"); return; }
+    msg("findmsg", list.length === 1 ? "Encontrei a tua TV." : "Encontrei " + list.length + " aparelhos. Escolhe a TV.", "good");
+    list.forEach((t, i) => {
+      const b = document.createElement("button");
+      b.className = "tv";
+      b.innerHTML = tvIcon + `<span><strong>TV Android</strong><small>${t.ip}</small></span><span class="pill ${t.ready ? "" : "warn"}">${t.ready ? "Pronta" : "Falta a depuração"}</span>`;
+      b.onclick = () => { document.querySelectorAll(".tv").forEach(x => x.classList.remove("sel")); b.classList.add("sel"); $("#ip").value = t.ip; };
+      $("#tvs").appendChild(b);
+      if (i === 0 && t.ready) b.click();
+    });
+  }).catch(() => { $("#radar").classList.remove("go"); $("#rescan").disabled = false; msg("findmsg", "A procura falhou. Escreve o IP da TV.", "bad"); });
+}
+function msg(id, t, cls) { const m = $("#" + id); m.textContent = t; m.className = "msg" + (cls ? " " + cls : ""); }
+
+function overlay(on, title, text, allow) {
+  $("#ov").classList.toggle("on", on);
+  if (title) $("#ovtitle").textContent = title;
+  $("#ovmsg").textContent = text || "";
+  $("#allow").hidden = !allow;
+}
+
+function connect() {
+  chosenIp = $("#ip").value.trim();
+  if (!/^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(chosenIp)) { msg("findmsg", "Escolhe a TV ou escreve um IP como 192.168.1.50.", "bad"); return; }
+  overlay(true, "A ligar à TV…", "");
+  api("/api/connect", { ip: chosenIp }).then(() => poll(s => {
+    if (s.phase === "working") {
+      if (s.msg === "authorize") overlay(true, "Olha para a TV", "Aparece este pedido no ecrã. Marca a caixa e carrega em OK com o comando.", true);
+      else overlay(true, "A ligar à TV…", s.msg);
+      return true;
+    }
+    overlay(false);
+    if (s.phase === "error") { msg("findmsg", s.msg, "bad"); return false; }
+    status = s; buildChoose(); go(3); return false;
+  }));
+}
+
+function poll(fn) {
+  const step = () => api("/api/status").then(s => { if (fn(s)) setTimeout(step, 600); }).catch(() => setTimeout(step, 1200));
+  step();
+}
+
+/* ---------- choose ---------- */
+function buildChoose() {
+  $("#tvname").textContent = "Ligado a " + (status.model || status.ip);
+  const plain = status.bloat.filter(b => !b.home).length;
+  $("#adsdesc").textContent = plain
+    ? `Encontrei ${plain} apps de fábrica com publicidade ou recolha de dados. Ficam desligadas, nunca apagadas.`
+    : "Não encontrei apps de publicidade conhecidas nesta TV. O ecrã do Google TV é desligado se escolheres o ecrã novo.";
+  $("#list").innerHTML = status.bloat.map(b => `<label><input type="checkbox" checked value="${b.pkg}">${b.label}<code>${b.pkg}</code></label>`).join("");
+  refresh();
+}
+document.querySelectorAll(".card[data-k]").forEach(c => {
+  const k = c.dataset.k;
+  if (!(k in opts)) return;
+  c.style.cursor = "pointer";
+  c.onclick = () => { opts[k] = !opts[k]; refresh(); };
+});
+document.querySelectorAll("#seg button").forEach(b => b.onclick = e => { e.stopPropagation(); bg = b.dataset.bg; refresh(); });
+function refresh() {
+  for (const k in opts) {
+    const c = $(`.card[data-k="${k}"]`);
+    c.querySelector(".sw").classList.toggle("on", opts[k]);
+    c.classList.toggle("off", !opts[k]);
+  }
+  if (!opts.home) $(".card[data-k=bgcard]").classList.add("locked"); else $(".card[data-k=bgcard]").classList.remove("locked");
+  if (bg === "canal" && !opts.player) bg = "lareira";
+  if (bg === "lareira" && !opts.tube) bg = opts.player ? "canal" : "fotos";
+  document.querySelectorAll("#seg button").forEach(b => {
+    b.disabled = (b.dataset.bg === "canal" && !opts.player) || (b.dataset.bg === "lareira" && !opts.tube);
+    b.classList.toggle("on", b.dataset.bg === bg);
+  });
+  $("#next").disabled = page === 3 && !Object.values(opts).some(Boolean);
+}
+
+/* ---------- apply ---------- */
+function apply() {
+  const pkgs = [...document.querySelectorAll("#list input:checked")].map(i => i.value).join(",");
+  restoring = false;
+  start({ home: +opts.home, ads: +opts.ads, tube: +opts.tube, player: +opts.player, bg, pkgs }, "/api/apply", "A preparar a tua TV");
+}
+function restore() {
+  restoring = true;
+  start({}, "/api/restore", "A repor a TV");
+}
+function start(body, url, title) {
+  $("#worktitle").textContent = title; $("#log").innerHTML = ""; setPct(0);
+  go(4);
+  api(url, body).then(() => poll(s => {
+    setPct(s.progress);
+    if (s.msg && s.msg !== "restored") $("#workmsg").textContent = s.msg;
+    const items = $("#log").children.length;
+    s.log.slice(items).forEach(l => { const li = document.createElement("li"); li.textContent = l; if (l.startsWith("✗")) li.className = "bad"; $("#log").appendChild(li); li.scrollIntoView({ block: "nearest" }); });
+    if (s.phase === "working") return true;
+    if (s.phase === "error") { $("#worktitle").textContent = "Não terminou"; $("#workmsg").textContent = s.msg; $("#back").hidden = false; $("#back").onclick = () => { $("#back").onclick = () => go(page - 1); go(3); }; return false; }
+    finish(); return false;
+  }));
+}
+function setPct(p) { $("#pct").textContent = p; $("#arc").style.strokeDashoffset = 729 - 729 * p / 100; }
+function finish() {
+  if (restoring) {
+    $("#donetitle").textContent = "A TV voltou ao que era.";
+    $("#donemsg").textContent = "Todas as apps foram reativadas e o ecrã inicial original está de volta.";
+    $("#qrcard").hidden = true;
+  } else {
+    $("#qrcard").hidden = !opts.home;
+    if (opts.home) {
+      try { $("#qrbox").innerHTML = ""; new QRCode($("#qrbox"), { text: REMOTE_APK, width: 180, height: 180, colorDark: "#111111", colorLight: "#ffffff" }); }
+      catch (e) { $("#qrbox").textContent = REMOTE_APK; $("#qrbox").style.fontSize = "11px"; $("#qrbox").style.color = "#111"; }
+    }
+  }
+  go(5);
+}
+
+document.addEventListener("keydown", e => { if (e.key === "Enter" && !$("#next").hidden && !$("#next").disabled && document.activeElement.tagName !== "BUTTON") next(); });
+go(0);
+</script>
+</body>
+</html>
