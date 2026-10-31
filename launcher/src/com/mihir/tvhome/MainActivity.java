@@ -1035,7 +1035,7 @@ public class MainActivity extends Activity {
 
     private boolean matchesIptv(KeyEvent e) {
         android.content.SharedPreferences p = getSharedPreferences("keys", MODE_PRIVATE);
-        int sc = p.getInt("scan", 752), kc = p.getInt("code", 0);
+        int sc = p.getInt("scan", 365), kc = p.getInt("code", 0);
         return (sc != 0 && e.getScanCode() == sc) || (kc != 0 && e.getKeyCode() == kc);
     }
 
@@ -1061,9 +1061,9 @@ public class MainActivity extends Activity {
 
     private String iptvKeyLabel() {
         android.content.SharedPreferences p = getSharedPreferences("keys", MODE_PRIVATE);
-        int sc = p.getInt("scan", 752), kc = p.getInt("code", 0);
+        int sc = p.getInt("scan", 365), kc = p.getInt("code", 0);
         if (kc != 0) return KeyEvent.keyCodeToString(kc).replace("KEYCODE_", "");
-        return sc == 752 ? "botão Prime Video" : "tecla " + sc;
+        return sc == 365 ? "botão TV (guia)" : "tecla " + sc;
     }
 
     private void startLearn() {
