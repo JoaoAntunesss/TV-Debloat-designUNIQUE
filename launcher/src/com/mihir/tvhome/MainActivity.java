@@ -711,7 +711,7 @@ public class MainActivity extends Activity {
             }));
         }
         // Split screen: this HDMI on the left, the AntunesPlayer channel on the right.
-        if (!getSharedPreferences("bg", MODE_PRIVATE).getString("url", "").isEmpty()) for (TvInputInfo t : inputs) {
+        for (TvInputInfo t : inputs) {
             rows.add(inputRow("Ecrã dividido · " + inputLabel(t), () -> launch(new Intent(this, SplitActivity.class)
                     .putExtra("input", t.getId()).putExtra("label", inputLabel(t)))));
         }
