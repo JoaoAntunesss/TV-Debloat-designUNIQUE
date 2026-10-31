@@ -989,12 +989,95 @@ public class MainActivity extends Activity {
             if (bgOn) handler.postDelayed(idleStop, BG_IDLE_MS);
             else if (bgIdle && resumed) startBg();
         }
+        // Choosing the IPTV key: the next non-navigation key pressed becomes the one that opens the IPTV app.
+        if (learning && e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0 && !isNavKey(e.getKeyCode())) {
+            saveIptvKey(e);
+            return true;
+        }
+        // Dedicated app buttons (Netflix, YouTube, Disney+, IPTV): the launcher opens the app itself.
+        String target = remoteTarget(e);
+        if (target != null) {
+            if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0) openRemoteTarget(target);
+            return true;
+        }
         // Menu key on the remote opens the Inputs dropdown.
         if (e.getKeyCode() == KeyEvent.KEYCODE_MENU && e.getAction() == KeyEvent.ACTION_UP && !pills.isEmpty()) {
             showInputs(pills.get(0));
             return true;
         }
         return super.dispatchKeyEvent(e);
+    }
+
+    // ---------------------------------------------------------------- dedicated remote buttons
+    // TCL remotes have Netflix, YouTube, Disney+ and Prime Video buttons. They send TCL-specific keys
+    // (Linux scan codes 242, 245, 762 and 752), so the launcher opens the right app when one reaches it.
+    // The IPTV key is chosen in the control panel ("Tecla IPTV") and starts out as the Prime Video button.
+
+    private boolean learning;
+    private final Runnable learnTimeout = () -> {
+        if (!learning) return;
+        learning = false;
+        android.widget.Toast.makeText(this, "Essa tecla não chegou à TV. Experimenta outra.", android.widget.Toast.LENGTH_LONG).show();
+    };
+
+    private static boolean isNavKey(int k) {
+        switch (k) {
+            case KeyEvent.KEYCODE_DPAD_UP: case KeyEvent.KEYCODE_DPAD_DOWN: case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT: case KeyEvent.KEYCODE_DPAD_CENTER: case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_BACK: case KeyEvent.KEYCODE_HOME: case KeyEvent.KEYCODE_MENU:
+            case KeyEvent.KEYCODE_VOLUME_UP: case KeyEvent.KEYCODE_VOLUME_DOWN: case KeyEvent.KEYCODE_VOLUME_MUTE:
+            case KeyEvent.KEYCODE_POWER: case KeyEvent.KEYCODE_TV_POWER:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private boolean matchesIptv(KeyEvent e) {
+        android.content.SharedPreferences p = getSharedPreferences("keys", MODE_PRIVATE);
+        int sc = p.getInt("scan", 752), kc = p.getInt("code", 0);
+        return (sc != 0 && e.getScanCode() == sc) || (kc != 0 && e.getKeyCode() == kc);
+    }
+
+    /** The app a dedicated remote button should open, or null when the key is not one of them. */
+    private String remoteTarget(KeyEvent e) {
+        if (matchesIptv(e)) return "iptv";
+        switch (e.getScanCode()) {
+            case 242: return "com.netflix.ninja";
+            case 245: return isInstalled(FIRE_APP) ? FIRE_APP : "com.google.android.youtube.tv";
+            case 762: return "com.disney.disneyplus";
+            default: return null;
+        }
+    }
+
+    private void openRemoteTarget(String t) {
+        String pkg = t.equals("iptv") ? getString(R.string.ambient_package) : t;
+        if (!isInstalled(pkg)) {
+            android.widget.Toast.makeText(this, "Essa app não está instalada.", android.widget.Toast.LENGTH_SHORT).show();
+            return;
+        }
+        openPackage(pkg);
+    }
+
+    private String iptvKeyLabel() {
+        android.content.SharedPreferences p = getSharedPreferences("keys", MODE_PRIVATE);
+        int sc = p.getInt("scan", 752), kc = p.getInt("code", 0);
+        if (kc != 0) return KeyEvent.keyCodeToString(kc).replace("KEYCODE_", "");
+        return sc == 752 ? "botão Prime Video" : "tecla " + sc;
+    }
+
+    private void startLearn() {
+        learning = true;
+        handler.removeCallbacks(learnTimeout);
+        handler.postDelayed(learnTimeout, 12000);
+        android.widget.Toast.makeText(this, "Carrega agora na tecla do comando que queres usar para a IPTV", android.widget.Toast.LENGTH_LONG).show();
+    }
+
+    private void saveIptvKey(KeyEvent e) {
+        learning = false;
+        handler.removeCallbacks(learnTimeout);
+        getSharedPreferences("keys", MODE_PRIVATE).edit().putInt("scan", e.getScanCode()).putInt("code", e.getKeyCode() == KeyEvent.KEYCODE_UNKNOWN ? 0 : e.getKeyCode()).apply();
+        android.widget.Toast.makeText(this, "Pronto: " + iptvKeyLabel() + " abre a IPTV", android.widget.Toast.LENGTH_LONG).show();
     }
 
     // ---------------------------------------------------------------- now playing (Spotify and any app with a media session)
@@ -1318,12 +1401,13 @@ public class MainActivity extends Activity {
         wt.setOnClickListener(v -> { nextBgMode(); ((TextView) wt.getTag()).setText(bgModeLabel()); });
         r2.addView(wt, wlp(-1, 0));
         col.addView(r2, llp(-1, dp(52), 0, dp(8), 0, 0));
+        col.addView(tile(Icon.APPS, "Tecla IPTV", iptvKeyLabel(), () -> { pw.dismiss(); startLearn(); }), llp(-1, dp(52), 0, dp(8), 0, 0));
 
         // Round shortcuts
         LinearLayout r3 = hlay();
         r3.setGravity(Gravity.CENTER);
         View[] round = {
-            roundBtn(Icon.FIRE, 40, () -> { pw.dismiss(); openFire(); }),
+            roundBtn(Icon.FIRE, 40, () -> { pw.dismiss(); openThemeVideo(); }),
             roundBtn(Icon.SEARCH, 40, () -> { pw.dismiss(); if (!launch(new Intent(Intent.ACTION_ASSIST))) launch(new Intent("android.search.action.GLOBAL_SEARCH")); }),
             roundBtn(Icon.ACCESS, 40, () -> { pw.dismiss(); launch(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }),
             roundBtn(Icon.SCREEN, 40, () -> { pw.dismiss(); if (!launch(new Intent(Settings.ACTION_DISPLAY_SETTINGS))) launch(new Intent(Settings.ACTION_SETTINGS)); }),
@@ -1669,13 +1753,19 @@ public class MainActivity extends Activity {
         switch (bgMode()) {
             case "lareira": return "Lareira (com som)";
             case "fotos": return "Fotos da natureza";
+            case "cidades": return "Cidades 4K (com som)";
+            case "animais": return "Animais 4K (com som)";
             default: return "Canal AntunesPlayer";
         }
     }
 
+    static final String[] BG_MODES = {"canal", "lareira", "fotos", "cidades", "animais"};
+
     private void nextBgMode() {
         String m = bgMode();
-        String n = m.equals("canal") ? "lareira" : m.equals("lareira") ? "fotos" : "canal";
+        int k = 0;
+        for (int i = 0; i < BG_MODES.length; i++) if (BG_MODES[i].equals(m)) k = i;
+        String n = BG_MODES[(k + 1) % BG_MODES.length];
         getSharedPreferences("bg", MODE_PRIVATE).edit().putString("mode", n).apply();
         stopBg();
         if (n.equals("canal")) startBg();
@@ -1688,13 +1778,49 @@ public class MainActivity extends Activity {
         launch(i);
     }
 
-    /** Lareira theme: the fireplace starts by itself when the TV is switched on (fresh boot or wake from standby). */
+    // 4K videos for the Cidades and Animais themes, played full screen in SmartTube like the fireplace.
+    // Change the IDs here to use other YouTube videos.
+    static final String[] CITY_VIDEOS = {
+        "eK649mWQ7T4",   // The World, 6 continents, 66 countries (4K, 4 h)
+        "IqsXSBdaya4",   // 48 capitals of the world from above (4K, 2 h 47)
+        "oyFS7mb0zOI",   // 26 countries of Europe from above (4K)
+        "RyUzY81_fSk",   // Drone film, jazz meets world (4K, 12 h)
+    };
+    static final String[] ANIMAL_VIDEOS = {
+        "X9ViIaJ30io",   // Animals on the planet (4K)
+        "8No3g6aLF5E",   // Baby animals (4K)
+        "QliSMn7udKE",   // Aquarium, coral reef fish (4K)
+    };
+
+    private boolean isVideoTheme() {
+        String m = bgMode();
+        return m.equals("lareira") || m.equals("cidades") || m.equals("animais");
+    }
+
+    /** Plays the video of the chosen theme full screen with sound (fireplace, cities or animals). Back returns here. */
+    private void openThemeVideo() {
+        String m = bgMode();
+        String[] ids = m.equals("cidades") ? CITY_VIDEOS : m.equals("animais") ? ANIMAL_VIDEOS : null;
+        String url = FIRE_URL;
+        if (ids != null) {
+            android.content.SharedPreferences p = getSharedPreferences("bg", MODE_PRIVATE);
+            int last = p.getInt("last_" + m, -1), k;
+            do { k = (int) (Math.random() * ids.length); } while (ids.length > 1 && k == last);
+            p.edit().putInt("last_" + m, k).apply();
+            url = "https://www.youtube.com/watch?v=" + ids[k];
+        }
+        Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+        if (isInstalled(FIRE_APP)) i.setPackage(FIRE_APP);
+        launch(i);
+    }
+
+    /** Video themes: the video starts by itself when the TV is switched on (fresh boot or wake from standby). */
     private void maybeFire() {
         boolean wake = screenOnAt > 0 && SystemClock.elapsedRealtime() - screenOnAt < 30_000;
         boolean boot = freshBoot();
         screenOnAt = -1;
-        if (!bgMode().equals("lareira") || !(wake || boot)) return;
-        handler.postDelayed(() -> { if (resumed && hasWindowFocus()) openFire(); }, 1500);
+        if (!isVideoTheme() || !(wake || boot)) return;
+        handler.postDelayed(() -> { if (resumed && hasWindowFocus()) openThemeVideo(); }, 1500);
     }
     static final long BG_IDLE_MS = 30 * 60 * 1000;
     private final Runnable idleStop = () -> { stopBg(); bgIdle = true; };
@@ -1817,7 +1943,7 @@ public class MainActivity extends Activity {
         return onUi(() -> {
             MainActivity a = live.get();
             switch (action) {
-                case "fire": a.openFire(); return true;
+                case "fire": a.openThemeVideo(); return true;
                 case "clock": a.showClockSaver(); return true;
                 case "apps": if (!a.gridCards.isEmpty()) a.gridCards.get(0).requestFocus(); return true;
                 case "input":
@@ -1838,9 +1964,9 @@ public class MainActivity extends Activity {
         }, false);
     }
 
-    /** Background theme of the home screen: canal, lareira or fotos. */
+    /** Background theme of the home screen: canal, lareira, fotos, cidades or animais. */
     static boolean remoteBg(Context ctx, String mode) {
-        if (!"canal".equals(mode) && !"lareira".equals(mode) && !"fotos".equals(mode)) return false;
+        if (!java.util.Arrays.asList(BG_MODES).contains(mode)) return false;
         ctx.getSharedPreferences("bg", MODE_PRIVATE).edit().putString("mode", mode).apply();
         onUi(() -> {
             MainActivity a = live.get();

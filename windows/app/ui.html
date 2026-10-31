@@ -257,6 +257,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
             <button data-bg="canal"><span class="sw-img" style="background:linear-gradient(135deg,#1f6feb,#0a1a5c)"></span>Canal ao vivo</button>
             <button data-bg="lareira"><span class="sw-img" style="background:radial-gradient(circle at 50% 80%,#ffd27a,#ff6a00 35%,#5a1600 70%,#140600)"></span>Lareira com som</button>
             <button data-bg="fotos"><span class="sw-img" style="background:url(/wall.jpg) center/cover"></span>Fotos</button>
+            <button data-bg="cidades"><span class="sw-img" style="background:linear-gradient(180deg,#1b2a4a,#f6a04d 62%,#2a1a3a)"></span>Cidades 4K</button>
+            <button data-bg="animais"><span class="sw-img" style="background:linear-gradient(135deg,#2e7d32,#a5d6a7 60%,#ffcc80)"></span>Animais 4K</button>
           </div>
         </div>
       </div>
@@ -2047,7 +2049,7 @@ function refresh() {
   if (bg === "canal" && !opts.player) bg = "lareira";
   if (bg === "lareira" && !opts.tube) bg = opts.player ? "canal" : "fotos";
   document.querySelectorAll("#seg button").forEach(b => {
-    b.disabled = (b.dataset.bg === "canal" && !opts.player) || (b.dataset.bg === "lareira" && !opts.tube);
+    b.disabled = (b.dataset.bg === "canal" && !opts.player) || ((b.dataset.bg === "lareira" || b.dataset.bg === "cidades" || b.dataset.bg === "animais") && !opts.tube);
     b.classList.toggle("on", b.dataset.bg === bg);
   });
   $("#next").disabled = page === 3 && !Object.values(opts).some(Boolean);
