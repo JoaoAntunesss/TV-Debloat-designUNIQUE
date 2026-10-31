@@ -18,13 +18,26 @@ Faz conjunto com o comando para o telemóvel **[TV-Remote-designUNIQUE](https://
 - **Painel de controlo:** música a tocar, Wi‑Fi, saída de som (colunas da TV / Bluetooth), relógio em ecrã inteiro,
   tema de fundo, lareira, pesquisa, acessibilidade, imagem, fontes, definições, RAM e espaço livre.
 - **Cartão "A tocar":** com a capa, ⏮ ⏯ ⏭ e "Ouvir", e o brilho na cor da capa.
-- **Ecrã dividido:** tecla Menu do comando (Fontes) → *Ecrã dividido · HDMI n*: HDMI à esquerda, canal à direita;
-  ◀ ▶ escolhem o som.
+- **Ecrã dividido:** tecla Menu do comando (Fontes) → *Ecrã dividido · HDMI n*: HDMI à esquerda e, à direita, um mini ecrã inicial
+  com relógio e as apps da dock, as duas metades do mesmo tamanho.
 - **Serviço para o comando do telemóvel** (rede local, porta 8765): `/apps` (apps com imagens), `/now` (o que está a dar),
   `/inputs` (HDMI), `/do` (lareira, relógio, fontes, ecrã dividido), `/bg` (tema de fundo) e `/shot.jpg`
   (imagem do ecrã; vídeo protegido aparece preto).
 
-## Instalar (Windows)
+## App para Windows (sem programar)
+Descarrega **[TVDebloat.exe](https://github.com/JoaoAntunesss/TV-Debloat-designUNIQUE/releases/latest/download/TVDebloat.exe)** e abre-o. Não precisa de instalar nada.
+
+1. A app mostra como ativar a **Depuração USB** na TV (Definições → Sistema → Acerca de → 7 cliques em «Compilação»).
+2. Procura a TV na rede sozinha. Na TV aparece «Permitir depuração?»: marca «Permitir sempre» e OK.
+3. Escolhes o que queres: **ecrã inicial novo**, **sem anúncios**, **YouTube sem anúncios** (SmartTube),
+   **AntunesPlayer** e o **fundo** (canal ao vivo, lareira com som ou fotos).
+4. No fim mostra um código QR para instalar o **Comando TV** no telemóvel Android.
+
+Tudo é reversível: o botão «Repor a TV como estava» reativa as apps e volta ao ecrã original.
+O Windows pode avisar «O Windows protegeu o computador» por a app não ser assinada: carrega em *Mais informações → Executar mesmo assim*.
+Na primeira vez descarrega as ferramentas oficiais da Google (adb) para `%LOCALAPPDATA%\TVDebloat`.
+
+## Instalar a partir do código (Windows)
 Requisitos: Android Studio (JDK + SDK build-tools 36 + platform 34) e, na TV, Opções de programador → depuração USB/rede.
 ```
 powershell -ExecutionPolicy Bypass -File windows\install.ps1 -Tv 192.168.1.128
