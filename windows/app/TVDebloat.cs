@@ -450,7 +450,7 @@ namespace TvDebloat
 
             Adb.Sh("am force-stop com.android.tv.settings");
             Adb.Sh("input keyevent KEYCODE_HOME");
-            if (homeOk && (bg == "canal" || bg == "lareira" || bg == "fotos"))
+            if (homeOk && (bg == "canal" || bg == "lareira" || bg == "fotos" || bg == "cidades" || bg == "animais"))
             {
                 Set(null, "A escolher o fundo…");
                 Thread.Sleep(4000);
@@ -460,7 +460,7 @@ namespace TvDebloat
                     try
                     {
                         using (var wc = new WebClient()) wc.DownloadString("http://" + tvIp + ":8765/bg?mode=" + bg);
-                        Say("✓ Fundo: " + (bg == "lareira" ? "lareira com som" : bg == "fotos" ? "fotos da natureza" : "canal ao vivo"));
+                        Say("✓ Fundo: " + (bg == "lareira" ? "lareira com som" : bg == "fotos" ? "fotos da natureza" : bg == "cidades" ? "cidades 4K" : bg == "animais" ? "animais 4K" : "canal ao vivo"));
                         break;
                     }
                     catch { Thread.Sleep(2000); }
