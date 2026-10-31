@@ -296,15 +296,32 @@ namespace TvDebloat
 
         static string Scan()
         {
-            var hits = new List<string>();
+            var probes = new List<Task<string>>();
             foreach (var prefix in Subnets())
-                Parallel.For(1, 255, new ParallelOptions { MaxDegreeOfParallelism = 96 }, i =>
-                {
-                    string ip = prefix + i;
-                    if (Open(ip, 5555, 500)) { lock (hits) hits.Add("{\"ip\":\"" + ip + "\",\"ready\":true}"); }
-                    else if (Open(ip, 6466, 350)) { lock (hits) hits.Add("{\"ip\":\"" + ip + "\",\"ready\":false}"); }
-                });
+                for (int i = 1; i < 255; i++) probes.Add(Probe(prefix + i));
+            Task.WaitAll(probes.ToArray(), 6000);
+            var hits = probes.Where(t => t.IsCompleted && t.Result != null).Select(t => t.Result).ToList();
             return "[" + string.Join(",", hits.OrderBy(h => h.Contains("false") ? 1 : 0)) + "]";
+        }
+
+        static async Task<string> Probe(string ip)
+        {
+            if (await OpenAsync(ip, 5555, 1500)) return "{\"ip\":\"" + ip + "\",\"ready\":true}";
+            if (await OpenAsync(ip, 6466, 1200)) return "{\"ip\":\"" + ip + "\",\"ready\":false}";
+            return null;
+        }
+
+        static async Task<bool> OpenAsync(string ip, int port, int ms)
+        {
+            var c = new TcpClient();
+            try
+            {
+                var t = c.ConnectAsync(ip, port);
+                var first = await Task.WhenAny(t, Task.Delay(ms));
+                return first == t && !t.IsFaulted && c.Connected;
+            }
+            catch { return false; }
+            finally { c.Close(); }
         }
 
         static IEnumerable<string> Subnets()
@@ -328,21 +345,6 @@ namespace TvDebloat
             return list;
         }
 
-        static bool Open(string ip, int port, int ms)
-        {
-            try
-            {
-                using (var c = new TcpClient())
-                {
-                    var r = c.BeginConnect(ip, port, null, null);
-                    bool ok = r.AsyncWaitHandle.WaitOne(ms) && c.Connected;
-                    try { c.EndConnect(r); } catch { }
-                    return ok;
-                }
-            }
-            catch { return false; }
-        }
-
         static void Connect(string ip)
         {
             ip = (ip ?? "").Trim();
@@ -354,8 +356,10 @@ namespace TvDebloat
             lock (L) job.Ip = ip;
             Adb.Run("disconnect " + serial, 5000);
             string r = Adb.Run("connect " + serial, 15000);
-            if (r.Contains("refused") || r.Contains("failed") || r.Contains("cannot") || r == "timeout")
+            if (r.Contains("refused"))
             { Set("error", "A TV recusou a ligação. Confirma que ativaste a «Depuração USB» nas Opções de programador."); return; }
+            if (r.Contains("failed") || r.Contains("cannot") || r == "timeout")
+            { Set("error", "Não consegui chegar à TV. Confirma que está ligada (não em espera), na mesma rede, e que o IP está certo."); return; }
             string state = "";
             for (int i = 0; i < 90; i++)
             {
