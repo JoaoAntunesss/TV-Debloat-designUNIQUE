@@ -27,6 +27,18 @@ Faz conjunto com o comando para o telemóvel **[TV-Remote-designUNIQUE](https://
 ## App para Windows (sem programar)
 Descarrega **[TVDebloat.exe](https://github.com/JoaoAntunesss/TV-Debloat-designUNIQUE/releases/latest/download/TVDebloat.exe)** e abre-o. Não precisa de instalar nada.
 
+<table>
+<tr>
+<td width="50%"><img src="docs/app-1-inicio.png" alt="Ecrã inicial da app"><br><sub>1. Início</sub></td>
+<td width="50%"><img src="docs/app-2-encontrar.png" alt="A app encontra a TV na rede"><br><sub>2. Encontra a TV na rede</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/app-3-escolher.png" alt="Escolher as funcionalidades"><br><sub>3. Escolhes o que queres</sub></td>
+<td width="50%"><img src="docs/app-4-pronto.png" alt="Pronto, com código QR para o comando"><br><sub>4. Pronto, com o QR do Comando TV</sub></td>
+</tr>
+</table>
+
+
 1. A app mostra como ativar a **Depuração USB** na TV (Definições → Sistema → Acerca de → 7 cliques em «Compilação»).
 2. Procura a TV na rede sozinha. Na TV aparece «Permitir depuração?»: marca «Permitir sempre» e OK.
 3. Escolhes o que queres: **ecrã inicial novo**, **sem anúncios**, **YouTube sem anúncios** (SmartTube),
