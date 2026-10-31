@@ -16,3 +16,4 @@ windows/backup-*/
 fire/
 *.apk
 launcher/patch*.ps1
+dist/
