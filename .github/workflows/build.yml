@@ -1,0 +1,37 @@
+name: Compilar TVDebloat.exe
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['launcher/**', 'windows/app/**', '.github/workflows/build.yml']
+permissions:
+  contents: write
+concurrency:
+  group: build-exe
+  cancel-in-progress: true
+jobs:
+  exe:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: 17 }
+      - name: SDK do Android (build-tools 36 e Android 14)
+        shell: pwsh
+        run: |
+          $sdk = if ($env:ANDROID_HOME) { $env:ANDROID_HOME } else { $env:ANDROID_SDK_ROOT }
+          (("y`n") * 20) | & "$sdk\cmdline-tools\latest\bin\sdkmanager.bat" "build-tools;36.0.0" "platforms;android-34" | Select-Object -Last 3
+          "ANDROID_SDK=$sdk" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Compilar o launcher e o TVDebloat.exe
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File windows\app\build-app.ps1
+      - name: Publicar nos Releases
+        shell: pwsh
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          Copy-Item launcher\build\tvhome.apk dist\tvhome.apk
+          $msg = git log -1 --format=%s
+          gh release upload app-v1 dist\TVDebloat.exe dist\tvhome.apk --clobber
+          gh release edit app-v1 --latest --notes "TVDebloat.exe: abre-o no PC com a TV ligada à mesma rede e escolhe o que queres. Última alteração: $msg"
+      - uses: actions/upload-artifact@v5
+        with: { name: TVDebloat, path: dist }
