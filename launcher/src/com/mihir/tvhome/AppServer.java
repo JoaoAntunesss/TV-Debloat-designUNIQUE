@@ -113,7 +113,9 @@ final class AppServer extends Thread {
             if (!hidden.contains(p) && !byPkg.containsKey(p)) byPkg.put(p, ri);
         }
         List<String> order = new ArrayList<>();
-        for (String p : ctx.getResources().getStringArray(R.array.dock_apps)) if (byPkg.containsKey(p)) order.add(p);
+        // same order as the home row on the TV (changed there by holding OK); config.xml until it is first changed
+        String saved = ctx.getSharedPreferences("dock", Context.MODE_PRIVATE).getString("order", null);
+        for (String p : saved != null ? saved.split(",") : ctx.getResources().getStringArray(R.array.dock_apps)) if (!p.isEmpty() && byPkg.containsKey(p) && !order.contains(p)) order.add(p);
         List<String> rest = new ArrayList<>(byPkg.keySet());
         rest.removeAll(order);
         Collections.sort(rest, (a, b) -> label(pm, byPkg.get(a)).compareToIgnoreCase(label(pm, byPkg.get(b))));
