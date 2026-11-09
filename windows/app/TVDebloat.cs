@@ -405,6 +405,14 @@ namespace TvDebloat
                 File.WriteAllBytes(apk, Res("tvhome.apk"));
                 string r = Adb.Install(apk, "tvhome.apk");
                 homeOk = r.Contains("Success");
+                if (!homeOk && (r.Contains("UPDATE_INCOMPATIBLE") || r.Contains("signatures do not match")))
+                {
+                    // the launcher on the TV was signed on another PC: swap it once for this one
+                    Set(null, "A trocar o ecrã inicial antigo pelo novo…");
+                    Adb.Sh("pm uninstall com.mihir.tvhome");
+                    r = Adb.Install(apk, "tvhome.apk");
+                    homeOk = r.Contains("Success");
+                }
                 Say(homeOk ? "✓ Ecrã inicial instalado" : "✗ Ecrã inicial: " + LastLine(r));
                 if (homeOk)
                 {
