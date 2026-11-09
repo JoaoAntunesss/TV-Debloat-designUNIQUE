@@ -1,9 +1,10 @@
 # Windows version of build-and-install.sh (build part): Android Studio's JDK + the SDK build-tools, no Gradle.
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
-$env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr'
+# Android Studio's JDK and SDK on a PC; on GitHub Actions the runner's JDK and SDK (JAVA_HOME / ANDROID_SDK).
+if (Test-Path 'C:\Program Files\Android\Android Studio\jbr') { $env:JAVA_HOME = 'C:\Program Files\Android\Android Studio\jbr' }
 $J = "$env:JAVA_HOME\bin"
-$SDK = "$env:LOCALAPPDATA\Android\Sdk"
+$SDK = if ($env:ANDROID_SDK) { $env:ANDROID_SDK } elseif (Test-Path "$env:LOCALAPPDATA\Android\Sdk") { "$env:LOCALAPPDATA\Android\Sdk" } else { $env:ANDROID_HOME }
 $BT = "$SDK\build-tools\36.0.0"
 $JAR = "$SDK\platforms\android-34\android.jar"
 $B = 'build'
@@ -24,8 +25,10 @@ $ar = (Resolve-Path assets).Path
 Get-ChildItem -Recurse -File assets | % { [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($z, $_.FullName, 'assets/' + $_.FullName.Substring($ar.Length + 1).Replace('\','/'), 'NoCompression') | Out-Null }
 $z.Dispose()
 & "$BT\zipalign.exe" -f 4 "$B\unsigned.apk" "$B\aligned.apk"; if ($LASTEXITCODE) { throw 'zipalign' }
-if (-not (Test-Path debug.keystore)) { & "$J\keytool.exe" -genkeypair -keystore debug.keystore -storepass android -keypass android -alias tvhome -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=tvhome' 2>$null }
-& "$BT\apksigner.bat" sign --ks debug.keystore --ks-pass pass:android --out "$B\tvhome.apk" "$B\aligned.apk"; if ($LASTEXITCODE) { throw 'apksigner' }
+# Same signing key on every PC and on GitHub (keystore.b64), so a new launcher always installs over the old one.
+if (Test-Path keystore.b64) { $KS = "$B\sign.keystore"; [IO.File]::WriteAllBytes((Join-Path (Resolve-Path $B).Path 'sign.keystore'), [Convert]::FromBase64String((Get-Content keystore.b64 -Raw).Trim())) }
+else { $KS = 'debug.keystore'; if (-not (Test-Path debug.keystore)) { & "$J\keytool.exe" -genkeypair -keystore debug.keystore -storepass android -keypass android -alias tvhome -keyalg RSA -keysize 2048 -validity 10000 -dname 'CN=tvhome' 2>$null } }
+& "$BT\apksigner.bat" sign --ks $KS --ks-pass pass:android --out "$B\tvhome.apk" "$B\aligned.apk"; if ($LASTEXITCODE) { throw 'apksigner' }
 "built $B\tvhome.apk ($((Get-Item "$B\tvhome.apk").Length) bytes)"
 
 
