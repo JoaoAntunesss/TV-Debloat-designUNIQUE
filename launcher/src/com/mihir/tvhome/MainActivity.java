@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        dockApps = getResources().getStringArray(R.array.dock_apps);
+        loadDockOrder();
         hidden.addAll(Arrays.asList(getResources().getStringArray(R.array.hidden_apps)));
         hidden.add(getPackageName());
         liveTvPkg = getString(R.string.live_tv_package);
@@ -487,7 +487,9 @@ public class MainActivity extends Activity {
         }
 
         List<App> dock = new ArrayList<>();
-        for (String p : dockApps) if (byPkg.containsKey(p)) dock.add(byPkg.remove(p));
+        for (String p : dockOrder) if (byPkg.containsKey(p)) dock.add(byPkg.remove(p));
+        // "Quantas apps no início": the ones past the limit go back to the Aplicações grid
+        if (dockMax > 0) while (dock.size() > dockMax) { App x = dock.remove(dock.size() - 1); byPkg.put(x.pkg, x); }
         List<App> rest = new ArrayList<>(byPkg.values());
         dock.add(actionApp("Aplicações", Icon.APPS, () -> { if (!gridCards.isEmpty()) gridCards.get(0).requestFocus(); }));
         dock.add(actionApp("Definições", Icon.GEAR, () -> launch(new Intent(Settings.ACTION_SETTINGS))));
@@ -601,6 +603,8 @@ public class MainActivity extends Activity {
                 .addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
                 .setComponent(app.component)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)));
+        // Hold OK on an app to put it on the home row, take it off, or change its place.
+        if (app.action == null) card.setOnLongClickListener(v -> { showAppMenu(card, app, inDock); return true; });
         card.setOnFocusChangeListener((v, has) -> {
             float s = has ? (inDock ? 1.12f : 1.1f) : 1f;
             v.animate().scaleX(s).scaleY(s).translationZ(has ? dp(14) : 0)
@@ -680,6 +684,163 @@ public class MainActivity extends Activity {
                 : y - (int) (screenH * 0.42f);
         int max = Math.max(0, content.getHeight() - scroll.getHeight());
         scroll.smoothScrollTo(0, Math.max(0, Math.min(target, max)));
+    }
+
+
+    // ---------------------------------------------------------------- choosing and ordering the home row
+    // Hold OK on any app: put it on the home row (the dock) or take it off, or move it left and right.
+    // The order is kept on the TV; the very first time it starts from dock_apps in config.xml.
+
+    private final List<String> dockOrder = new ArrayList<>();
+    private String movingPkg;
+    private int dockMax;
+
+    private void loadDockOrder() {
+        dockOrder.clear();
+        String s = getSharedPreferences("dock", MODE_PRIVATE).getString("order", null);
+        dockMax = getSharedPreferences("dock", MODE_PRIVATE).getInt("max", 0);
+        if (s == null) dockOrder.addAll(Arrays.asList(getResources().getStringArray(R.array.dock_apps)));
+        else for (String p : s.split(",")) if (!p.isEmpty() && !dockOrder.contains(p)) dockOrder.add(p);
+    }
+
+    private void saveDockOrder() {
+        getSharedPreferences("dock", MODE_PRIVATE).edit().putString("order", android.text.TextUtils.join(",", dockOrder)).apply();
+    }
+
+    /** The dock apps as they are on screen right now (installed ones only, without Aplicações/Definições). */
+    private List<String> shownDock() {
+        List<String> out = new ArrayList<>();
+        for (View c : dockCards) { App a = (App) c.getTag(); if (a != null && a.action == null) out.add(a.pkg); }
+        return out;
+    }
+
+    private View cardFor(String pkg) {
+        for (View c : dockCards) if (pkg.equals(((App) c.getTag()).pkg)) return c;
+        for (View c : gridCards) if (pkg.equals(((App) c.getTag()).pkg)) return c;
+        return null;
+    }
+
+    /** A small dark menu under a tile, in the same style as the Inputs menu. */
+    private void tileMenu(View anchor, String heading, List<TextView> rows) {
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(8), dp(8), dp(8), dp(8));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(16));
+        bg.setColor(0xF02A2A2E);
+        bg.setStroke(dp(1), 0x26FFFFFF);
+        list.setBackground(bg);
+
+        TextView head = text(12, "sans-serif-medium", 0xB3FFFFFF);
+        head.setText(heading);
+        head.setSingleLine(true);
+        head.setPadding(dp(14), dp(4), dp(14), dp(6));
+        list.addView(head, new LinearLayout.LayoutParams(-1, -2));
+
+        PopupWindow pw = new PopupWindow(list, dp(270), -2, true);
+        final boolean[] acted = {false};
+        for (TextView r : rows) {
+            r.setOnClickListener(v -> { acted[0] = true; pw.dismiss(); ((Runnable) v.getTag()).run(); });
+            list.addView(r, new LinearLayout.LayoutParams(-1, dp(36)));
+        }
+        for (int i = 0; i < rows.size(); i++) {
+            TextView r = rows.get(i);
+            r.setNextFocusUpId(rows.get(Math.max(0, i - 1)).getId());
+            r.setNextFocusDownId(rows.get(Math.min(rows.size() - 1, i + 1)).getId());
+            r.setNextFocusLeftId(r.getId());
+            r.setNextFocusRightId(r.getId());
+        }
+        pw.setOutsideTouchable(true);
+        pw.setElevation(dp(16));
+        pw.setOnDismissListener(() -> { if (!acted[0] && anchor.isAttachedToWindow()) anchor.requestFocus(); });
+        pw.showAsDropDown(anchor, 0, dp(10), Gravity.START);
+        rows.get(0).requestFocus();
+    }
+
+    private void showAppMenu(View anchor, App app, boolean inDock) {
+        List<TextView> rows = new ArrayList<>();
+        if (inDock) {
+            if (shownDock().size() > 1) rows.add(inputRow("Mudar de lugar  ◀ ▶", () -> startMove(app.pkg)));
+            rows.add(inputRow("Tirar do início", () -> {
+                dockOrder.remove(app.pkg); saveDockOrder(); buildApps();
+                View c = cardFor(app.pkg); if (c != null) c.requestFocus();
+                android.widget.Toast.makeText(this, app.label + " saiu do início", android.widget.Toast.LENGTH_SHORT).show();
+            }));
+        } else {
+            rows.add(inputRow("Pôr no início", () -> addToDock(app, false)));
+            rows.add(inputRow("Pôr em primeiro no início", () -> addToDock(app, true)));
+        }
+        rows.add(inputRow("Quantas apps no início…  (" + (dockMax == 0 ? "todas" : String.valueOf(dockMax)) + ")", () -> showCountMenu(anchor)));
+        tileMenu(anchor, app.label, rows);
+    }
+
+    private void showCountMenu(View anchor) {
+        List<TextView> rows = new ArrayList<>();
+        for (int n : new int[]{0, 3, 4, 5, 6, 7, 8, 10}) {
+            rows.add(inputRow((n == 0 ? "Todas as escolhidas" : n + " apps") + (n == dockMax ? "   ✓" : ""), () -> {
+                dockMax = n;
+                getSharedPreferences("dock", MODE_PRIVATE).edit().putInt("max", n).apply();
+                buildApps();
+                if (!dockCards.isEmpty()) dockCards.get(0).requestFocus();
+                android.widget.Toast.makeText(this, n == 0 ? "Todas as apps escolhidas ficam no início" : "Até " + n + " apps no início; as outras ficam em Aplicações", android.widget.Toast.LENGTH_LONG).show();
+            }));
+        }
+        tileMenu(anchor, "Quantas apps no início", rows);
+    }
+
+    private void addToDock(App app, boolean first) {
+        dockOrder.remove(app.pkg);
+        if (first) {
+            // first among the apps that are actually on screen, even if config.xml lists missing ones before them
+            List<String> shown = shownDock();
+            int at = shown.isEmpty() ? 0 : Math.max(0, dockOrder.indexOf(shown.get(0)));
+            dockOrder.add(at, app.pkg);
+        } else {
+            List<String> shown = shownDock();
+            if (dockMax > 0 && shown.size() >= dockMax) dockOrder.add(Math.max(0, dockOrder.indexOf(shown.get(dockMax - 1))), app.pkg);
+            else dockOrder.add(app.pkg);
+        }
+        saveDockOrder();
+        buildApps();
+        startMove(app.pkg);
+    }
+
+    private void startMove(String pkg) {
+        movingPkg = pkg;
+        View c = cardFor(pkg);
+        if (c != null) c.requestFocus();
+        showMoving();
+        android.widget.Toast.makeText(this, "◀ ▶ mudam o lugar · OK deixa ficar", android.widget.Toast.LENGTH_LONG).show();
+    }
+
+    private void showMoving() {
+        View c = cardFor(movingPkg);
+        if (c == null) return;
+        App a = (App) c.getTag();
+        title.setText("◀  " + a.label + "  ▶");
+        title.animate().alpha(1f).setDuration(150).start();
+    }
+
+    private void moveDock(int dir) {
+        List<String> shown = shownDock();
+        int i = shown.indexOf(movingPkg), j = i + dir;
+        if (i < 0 || j < 0 || j >= shown.size()) return;
+        int a = dockOrder.indexOf(movingPkg), b = dockOrder.indexOf(shown.get(j));
+        if (a < 0 || b < 0) return;
+        Collections.swap(dockOrder, a, b);
+        saveDockOrder();
+        buildApps();
+        View c = cardFor(movingPkg);
+        if (c != null) c.requestFocus();
+        showMoving();
+    }
+
+    private void endMove() {
+        String p = movingPkg;
+        movingPkg = null;
+        View c = p == null ? null : cardFor(p);
+        if (c != null) { c.requestFocus(); title.setText(((App) c.getTag()).label); }
+        android.widget.Toast.makeText(this, "Ordem guardada", android.widget.Toast.LENGTH_SHORT).show();
     }
 
     // ---------------------------------------------------------------- inputs
@@ -988,6 +1149,19 @@ public class MainActivity extends Activity {
             handler.removeCallbacks(idleStop);
             if (bgOn) handler.postDelayed(idleStop, BG_IDLE_MS);
             else if (bgIdle && resumed) startBg();
+        }
+        // Moving a dock app: ◀ ▶ change its place, OK (or Back) leaves it there.
+        if (movingPkg != null) {
+            int k = e.getKeyCode();
+            if (k == KeyEvent.KEYCODE_DPAD_LEFT || k == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                if (e.getAction() == KeyEvent.ACTION_DOWN) moveDock(k == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+                return true;
+            }
+            if (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER || k == KeyEvent.KEYCODE_BACK
+                    || k == KeyEvent.KEYCODE_DPAD_UP || k == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (e.getAction() == KeyEvent.ACTION_UP) endMove();
+                return true;
+            }
         }
         // Choosing the IPTV key: the next non-navigation key pressed becomes the one that opens the IPTV app.
         if (learning && e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0 && !isNavKey(e.getKeyCode())) {
