@@ -61,7 +61,8 @@
         </receiver>
         <activity android:name=".SplitActivity" android:exported="false" android:excludeFromRecents="true"
             android:screenOrientation="landscape" android:launchMode="singleTask" android:theme="@style/Home"
-            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|uiMode|density" />
+            android:supportsPictureInPicture="true" android:resizeableActivity="true"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|smallestScreenSize|screenLayout|uiMode|density" />
         <!-- Pictures of the screen for the phone remote. -->
         <service android:name=".ShotService" android:exported="false" android:foregroundServiceType="mediaProjection" />
     </application>
